@@ -2,6 +2,8 @@
 
 class Renderer
 {
+    
+
     constructor()
     {
 
@@ -22,27 +24,121 @@ class Renderer
         const vertexShaderRaw = glsl`
             attribute vec4 position; 
             attribute vec4 color;
-            attribute vec4 normal;
-            uniform mat4 matrix;
+            attribute vec3 normal;
+            uniform mat4 worldViewMatrix;
 
             varying vec4 vertexColor;
-            varying vec4 vertexNormal;
+            varying vec3 vertexNormal;
+            varying vec3 vetexPosition;
 
             void main(void) {
-                vec4 pos = matrix * position;
+                vec4 pos = worldViewMatrix * position;
                 gl_Position = pos;
                 vertexColor = color;
                 vertexNormal = normal;
+                vetexPosition = pos.xyz;
             }
         `;
 
         const fragementShaderRaw = glsl`
             precision mediump float;
             varying vec4 vertexColor;
-            varying vec4 vertexNormal;
+            varying vec3 vertexNormal;
+            varying vec3 vetexPosition;
+            const int LIGHT_NUM = 8;
+
+            // -1: no light | 0: ambient light | 1: directional light | 2: point light
+            uniform int lightModes[LIGHT_NUM];
+            uniform vec3 lightPositions[LIGHT_NUM];
+            uniform vec4 lightColors[LIGHT_NUM];
+            uniform vec3 reverseLightDirections[LIGHT_NUM];
+            uniform float lightIntensitys[LIGHT_NUM];
+            uniform mat4 pointLightMatrix;
+
 
             void main(void) {
-                gl_FragColor = (normalize(vertexNormal)+1.0)/2.0;
+                vec3 normal = normalize(vertexNormal);
+                float alpha = vertexColor.a;
+                vec4 reflectedColor = vec4(0);
+                float reflectedIntensity = 0.0;
+                float ambientIntensity = 0.0;
+
+                // Calculates the reflected color
+                for(int i = 0; i < LIGHT_NUM; i++)
+                {
+                    int mode = lightModes[i];
+                    
+                    if(mode < 0)
+                    {
+                        break;
+                    }
+                    else if(mode==0)
+                    {
+                        vec4 col = lightColors[i];
+                        float intensity = lightIntensitys[i];
+                        reflectedColor += col * intensity;
+                        ambientIntensity += intensity;
+                    }
+                    else if(mode==1)
+                    {
+                        vec4 col = lightColors[i];
+                        float intensity = 0.0;
+                        vec3 dir = normalize(reverseLightDirections[i]);
+                        float reflectionIntensity = dot(normal, dir);
+                        if(reflectionIntensity > 0.0)
+                            intensity = reflectionIntensity * lightIntensitys[i];
+                        reflectedColor += col * intensity;
+                        reflectedIntensity += intensity;
+                    }
+                    else if(mode == 2)
+                    {
+                        vec4 col = lightColors[i];
+                        float intensity = 0.0;
+                        vec3 pos = (pointLightMatrix * vec4(lightPositions[i],1)).xyz;
+                        vec3 dir = normalize(pos - vetexPosition);
+                        float reflectionIntensity = dot(normal, dir);
+                        if(reflectionIntensity > 0.0)
+                            intensity = reflectionIntensity * lightIntensitys[i];
+                        reflectedColor += col * intensity;
+                        reflectedIntensity += intensity;
+                    }
+                }
+
+                // Brightens color
+                vec4 color = vertexColor * reflectedColor;
+                float maxC = max(color.x, color.y);
+                maxC = max(maxC, color.z);
+                maxC = max(maxC, 0.01);
+                color = color/maxC;
+                color.a = vertexColor.a;
+
+                // Sets color
+                gl_FragColor = color;
+                if(reflectedIntensity > 0.95)
+                {
+                    gl_FragColor.rgb *= ambientIntensity + max(2.0-ambientIntensity, 0.0);
+                } 
+                else if(reflectedIntensity > 0.7)
+                {
+                    gl_FragColor.rgb *= ambientIntensity + max(1.0-ambientIntensity, 0.0);
+                }
+                else if(reflectedIntensity > 0.3)
+                {
+                    gl_FragColor.rgb *= ambientIntensity + max(0.7-ambientIntensity, 0.0);
+                }
+                else if(reflectedIntensity > 0.0)
+                {
+                    gl_FragColor.rgb *= ambientIntensity + max(0.3-ambientIntensity, 0.0);
+                }
+                else
+                {
+                    gl_FragColor.rgb *= ambientIntensity;
+                }
+            }
+
+            vec4 calulateColor(in vec4 color, in vec3 normal)
+            {
+                return vec4(1.0,1.0,1.0,1.0);
             }
         `;
 
@@ -61,7 +157,6 @@ class Renderer
         // ------------------------------------------
 
         let program;
-
         program = createProgram(this.gl, vertexShader, fragmentShader);
         this.gl.useProgram(program);
         
@@ -72,8 +167,18 @@ class Renderer
         this.glPositionAttributeLocation = this.gl.getAttribLocation(program, "position");
         this.glColorAttributeLocation = this.gl.getAttribLocation(program, "color");
         this.glNormalAttributeLocation = this.gl.getAttribLocation(program, "normal");
-        this.glMatrixLocation = this.gl.getUniformLocation(program, "matrix");
-        
+        this.glMatrixLocation = this.gl.getUniformLocation(program, "worldViewMatrix");
+        this.glNormalMatrixLocation = this.gl.getUniformLocation(program, "worldInverseTransposeMatrix");
+
+        this.glLightModes = this.gl.getUniformLocation(program, "lightModes");
+        this.glLightPositions = this.gl.getUniformLocation(program, "lightPositions");
+        this.glLightColors = this.gl.getUniformLocation(program, "lightColors");
+        this.glLightDirections = this.gl.getUniformLocation(program, "reverseLightDirections");
+        this.glLightIntensitys = this.gl.getUniformLocation(program, "lightIntensitys");
+        this.glPointLightMatrixLocation = this.gl.getUniformLocation(program, "pointLightMatrix");
+        this.program = program;
+
+
         // ------------------------------------------
         // Create buffers
         // ------------------------------------------
@@ -94,12 +199,59 @@ class Renderer
 
     drawScene(scene)
     {
-        this.initView(scene)
+        this.initView(scene);
+        this.updateLights(scene);
         for(let i = 0; i < scene.glObjects.length; i++)
         {
             let obj = scene.glObjects[i];
             this.draw(obj, scene.camera);
         }
+    }
+
+    updateLights(scene)
+    {
+        const LIGHT_NUM = 8;
+        let amount = scene.lights.length;
+
+        if(scene.lights.length > LIGHT_NUM)
+        {
+            console.log("Only " + LIGHT_NUM + " lightsources are supported!");
+        }
+
+        let pos = [];
+        let modes = [];
+        let intensities = [];
+        let colors = [];
+        let directions = [];
+
+        for(let i = 0; i < LIGHT_NUM; i++)
+        {
+            if(i >= amount)
+            {
+                modes.push(-1);
+                pos = pos.concat(Vector3.zero().elements);
+                intensities.push(0);
+                colors = colors.concat(Color.white().toArray());
+                directions = directions.concat(Vector3.zero().elements);
+            }
+            else
+            {
+                let light = scene.lights[i];
+                modes.push(light.mode);
+                pos = pos.concat(light.localPosition.elements);
+                intensities.push(light.intensity);
+                colors = colors.concat(light.color.toArray());
+                directions = directions.concat(light.reverseDirection.elements);
+            }
+        }
+
+        //console.log(directions);
+        //console.log(modes);
+        this.gl.uniform1iv(this.glLightModes, new Int32Array(modes));
+        this.gl.uniform1fv(this.glLightIntensitys, new Float32Array(intensities));
+        this.gl.uniform4fv(this.glLightColors, new Float32Array(colors));
+        this.gl.uniform3fv(this.glLightDirections, new Float32Array(directions));
+        this.gl.uniform3fv(this.glLightPositions, new Float32Array(pos));
     }
 
     initView(scene)
@@ -147,11 +299,22 @@ class Renderer
         let projectionMatrix = this.createPerspectiveProjectionMatrix(camera);
         let viewMatrix = camera.viewMatrix;
 
-
+        // Bind world view matrix
         let matrix = transformationMatrix;
         matrix = matrix.multiply(viewMatrix);
         matrix = matrix.multiply(projectionMatrix);
         this.gl.uniformMatrix4fv(this.glMatrixLocation, false, matrix.elements);
+
+        let pointMatrix = viewMatrix;
+        pointMatrix = pointMatrix.multiply(projectionMatrix);
+        this.gl.uniformMatrix4fv(this.glPointLightMatrixLocation, false, pointMatrix.elements);
+        //console.table(matrix.elements);
+
+        // Bind normal matrix
+        this.gl.uniformMatrix4fv(this.worldInverseTransposeMatrix, false, glObject.normalMatrix.elements);
+        //console.table(glObject.normalMatrix.elements);
+        //console.log(normalMatrix.multiply(new Matrix([0,1,0,1], 1, 4)));
+
         this.bindVertices(glObject);
         this.bindNormals(glObject);
 
@@ -165,6 +328,7 @@ class Renderer
         //this.bindLines(glObject);
         //this.gl.drawElements(this.gl.LINES, this.linesIndicesCount, this.gl.UNSIGNED_SHORT,0);
     }
+
 
 
     bindVertices(glObject)

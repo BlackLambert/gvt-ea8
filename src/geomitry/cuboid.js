@@ -37,9 +37,97 @@ class Cuboid extends GLObject
         triangulation.combine(Triangulation.triangulateFour([v[2], v[6], v[7], v[3]]));
         triangulation.combine(Triangulation.triangulateFour([v[3], v[7], v[4], v[0]]));
         triangulation.combine(Triangulation.triangulateFour([v[4], v[7], v[6], v[5]]));
-
-        let result = new Cuboid(Vector3.zero(), Vector3.zero(), Vector3.one(), v, triangulation.faces, triangulation.lines);
+        
+        let result = Cuboid.create(v, triangulation, lineColor, faceColor);
         result.removeDoubleLines();
+        return result;
+    }
+
+    static createDoubleLined(dimensions, lineColor, faceColor)
+    {
+        let d = dimensions;
+        let t = Triangulation.createEmpty();
+        let v = [];
+
+        // Half width
+        let hw = d[0]/2;
+        // Half hight
+        let hh = d[1]/2;
+        // Half depth
+        let hd = d[2]/2;
+
+        // Front
+        v.push(new Vertex(new Vector3(-hw, -hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, -hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, +hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(-hw, +hh, +hd), v.length));
+        setNormal(new Vector3(0,0,1));
+        tiangulate();
+
+        // Back
+        v.push(new Vertex(new Vector3(-hw, +hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, +hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, -hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(-hw, -hh, -hd), v.length));
+        setNormal(new Vector3(0,0,-1));
+        tiangulate();
+
+        //Top
+        v.push(new Vertex(new Vector3(-hw, +hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, +hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, +hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(-hw, +hh, -hd), v.length));
+        setNormal(new Vector3(0,1,0));
+        let l = v.length;
+        tiangulate();
+
+        //Bottom
+        v.push(new Vertex(new Vector3(-hw, -hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, -hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, -hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(-hw, -hh, +hd), v.length));
+        setNormal(new Vector3(0,-1,0));
+        tiangulate();
+
+        //Right
+        v.push(new Vertex(new Vector3(+hw, -hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, -hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, +hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(+hw, +hh, +hd), v.length));
+        setNormal(new Vector3(1,0,0));
+        tiangulate();
+        
+        //Left
+        v.push(new Vertex(new Vector3(-hw, -hh, -hd), v.length));
+        v.push(new Vertex(new Vector3(-hw, -hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(-hw, +hh, +hd), v.length));
+        v.push(new Vertex(new Vector3(-hw, +hh, -hd), v.length));
+        setNormal(new Vector3(-1,0,0));
+        tiangulate();
+
+        function tiangulate()
+        {
+            let l = v.length;
+            t.combine(Triangulation.triangulateFour([v[l-4], v[l-1], v[l-2], v[l-3]]));
+        }
+
+        function setNormal(normal)
+        {
+            let l = v.length;
+            for(let i = 1; i<=4; i++)
+            {
+                v[l-i].normal = normal;
+            }
+        }
+
+        //console.log(v);
+        let result = Cuboid.create(v, t, lineColor, faceColor);
+        return result;
+    }
+
+    static create(vertices, triangulation, lineColor, faceColor)
+    {
+        let result = new Cuboid(Vector3.zero(), Vector3.zero(), Vector3.one(), vertices, triangulation.faces, triangulation.lines);
         result.setFaceColor(faceColor);
         result.setWireframeColor(lineColor);
         return result;
@@ -47,6 +135,6 @@ class Cuboid extends GLObject
 
     get normals()
     {
-        return this.faceNormals;
+        return this.vertexNormals;
     }
 }

@@ -45,6 +45,6 @@ class Octahedron extends GLObject
 
     get normals()
     {
-        return this.faceNormals;
+        return this.vertexNormals;
     }
 }

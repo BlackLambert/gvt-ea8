@@ -31,6 +31,10 @@ class Color
     {
         return new Color(1.0,0.0,0.0,1.0);
     }
+    static green()
+    {
+        return new Color(0.0,1.0,0.0,1.0);
+    }
 
     static random()
     {

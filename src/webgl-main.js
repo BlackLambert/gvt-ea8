@@ -15,8 +15,8 @@ let lineColorBuffer = null;
 let triangleIndicesBuffer = null;
 
 
-const torusInnerRadius = 130;
-const torusOuterRadius = 150;
+const torusInnerRadius = 120;
+const torusOuterRadius = 170;
 const torusPosition = new Vector3(0, 0, 0);
 const torusDeltaRotation = new Vector3(2, 0, 0);
 const torusResolution = 10;
@@ -24,61 +24,45 @@ const torusInnerResolution = 40;
 const torusLineColor = Color.black();
 const torusColor = new Color(0.9, 0.9, 0.2, 1.0);
 
-const torus2InnerRadius = 100;
-const torus2OuterRadius = 120;
+const torus2InnerRadius = 50;
+const torus2OuterRadius = 100;
 const torus2Position = new Vector3(0, 0, 0);
 const torus2DeltaRotation = new Vector3(0, 2, 0);
 const torus2Resolution = 10;
 const torus2InnerResolution = 40;
-const torus2LineColor = Color.black();
+const torus2LineColor = Color.green();
 const torus2Color = new Color(0.9, 0.2, 0.9, 1.0);
 
-const sphereRadius = 50;
+const sphereRadius = 75;
 const sphereResolution = 4;
 const spherePosition = new Vector3(0, 0, 0);
-const sphereDeltaRotation = new Vector3(0, 0, 0);
+const sphereDeltaRotation = new Vector3(0, 0.5, 0);
 const sphereLineColor = Color.white();
-const sphereColor = Color.black();
+const sphereColor = new Color(0.2, 0.9, 0.9, 1.0);
+const shereDistance = 250;
 
-const octahedron2Height = 240;
-const octahedron2Width = 50;
-const octahedron2Position = new Vector3(0, 0, 0);
-const octahedron2DeltaRotation = new Vector3(0, 0, 0);
-const octahedron2LineColor = Color.white();
-const octahedron2Color = Color.black();
+const directionalLightDir = new Vector3(-0.2, 0.2, -0.75);
+const directionalLightIntensity = 0.6;
+const directionalLightColor = new Color(1.0, 1.0,1.0,1.0);
+const directionalLightDeltaRotation = 2.5;
+let directionalLightAngle = 90;
+let dirLight;
 
-const nailHeight = 80;
-const nailWidth = 10;
-const nail1Position = new Vector3(0, 0, 250);
-const nail2Position = new Vector3(0, 0, -250);
-const nail3Position = new Vector3(250, 0, 0);
-const nail4Position = new Vector3(-250, 0, 0);
-const nail5Position = new Vector3(0, 250, 0);
-const nail6Position = new Vector3(0, -250, 0);
-const nailRotation = new Vector3(90, 0, 0);
-const nail2Rotation = new Vector3(90, 90, 0);
-const nail3Rotation = new Vector3(0, 0, 0);
-const nailDeltaRotation = new Vector3(0, 0, 0);
-const nailLineColor = Color.black();
-const nailColor = Color.red();
-const nailDistance = 200;
+const pointLightDistance = 450;
+const pointLightIntensity = 0.6;
+const pointLightColor = new Color(1.0, 1.0,1.0,1.0);
+const pointLightDeltaRotation = 2.5;
+const pointLightPosition = Vector3.zero();
+let pointLight;
+let pointLightAngle = 270;
 
-const cuboidHeight = 20;
-const cuboidWidth = 150;
-const cuboidDepth = 20;
-const cuboidPosition = new Vector3(0, 0, 0);
-const cuboidRotation = new Vector3(0, 0, 45);
-const cuboidDeltaRotation = new Vector3(0, -0.5, 0);
-const cuboidLineColor = Color.black();
-const cuboidColor = Color.white();
+const ambientLightIntensity = 0.15;
+const ambientLightColor = Color.white();
 
+let sphere;
+let sphereAngle = 0;
+const sphereDeltaAngle = 0.5;
 
-const cuboid2Rotation = new Vector3(0, 90, 360-45);
-
-let nails = [];
-let nailPositions = [];
-let nailAngle = 0;
-const nailDeltaAngle = 3;
 
 
 function webglMain()
@@ -99,18 +83,13 @@ function createScene()
     let sceneObjects = [];
     let lights = [];
 
-    //createTorus(glObjects, sceneObjects);
+    createTorus(glObjects, sceneObjects);
     createSphere(glObjects, sceneObjects);
+    colorRandom(sphere);
     //createOctahedron(glObjects, sceneObjects);
-    //createCuboid(glObjects, sceneObjects, cuboidRotation);
-    //createCuboid(glObjects, sceneObjects, cuboid2Rotation);
-    //createNail(glObjects, sceneObjects, nail1Position, nailRotation);
-    //createNail(glObjects, sceneObjects, nail2Position, nailRotation);
-    //createNail(glObjects, sceneObjects, nail3Position, nail2Rotation);
-    //createNail(glObjects, sceneObjects, nail4Position, nail2Rotation);
-    //createNail(glObjects, sceneObjects, nail5Position, nail3Rotation);
-    //createNail(glObjects, sceneObjects, nail6Position, nail3Rotation);
-    //createLights(sceneObjects);
+    //createCuboid(glObjects, sceneObjects, cuboidRotation, true);
+    //createCuboid(glObjects, sceneObjects, cuboid2Rotation, true);
+    createLights(sceneObjects, lights);
     let cam = createCamera(sceneObjects);
 
     // ------------------------------------------
@@ -152,25 +131,25 @@ function createTorus(glObjects, sceneObjects)
 
 function createSphere(glObjects, sceneObjects)
 {
-    let sphere = RecursiveSphere.createBasic(sphereRadius, sphereResolution, sphereLineColor, sphereColor);
-    sphere.localPosition = spherePosition;
-    sphere.deltaRotation = sphereDeltaRotation;
-    glObjects.push(sphere);
-    sceneObjects.push(sphere);
+    let s = RecursiveSphere.createBasic(sphereRadius, sphereResolution, sphereLineColor, sphereColor);
+    s.localPosition = spherePosition;
+    s.deltaRotation = sphereDeltaRotation;
+    glObjects.push(s);
+    sceneObjects.push(s);
+    sphere = s;
 }
 
-function createOctahedron(glObjects, sceneObjects)
+function createCuboid(glObjects, sceneObjects, rotation, double)
 {
-    let octahedron2 = Octahedron.createBasic(octahedron2Height, octahedron2Width, octahedron2LineColor, octahedron2Color);
-    octahedron2.localPosition = octahedron2Position;
-    octahedron2.deltaRotation = octahedron2DeltaRotation;
-    glObjects.push(octahedron2);
-    sceneObjects.push(octahedron2);
-}
-
-function createCuboid(glObjects, sceneObjects, rotation)
-{
-    let cuboid = Cuboid.createBasic([cuboidWidth, cuboidHeight, cuboidDepth], cuboidLineColor, cuboidColor);
+    let cuboid;
+    if(double)
+    {
+        cuboid = Cuboid.createDoubleLined([cuboidWidth, cuboidHeight, cuboidDepth], cuboidLineColor, cuboidColor);
+    }
+    else
+    {
+        cuboid = Cuboid.createBasic([cuboidWidth, cuboidHeight, cuboidDepth], cuboidLineColor, cuboidColor);
+    }
     cuboid.localPosition = cuboidPosition;
     cuboid.localRotation = rotation;
     cuboid.deltaRotation = cuboidDeltaRotation;
@@ -178,21 +157,21 @@ function createCuboid(glObjects, sceneObjects, rotation)
     sceneObjects.push(cuboid);
 }
 
-function createNail(glObjects, sceneObjects, position, rotation)
+function createLights(sceneObjects, lights)
 {
-    let nail = Octahedron.createBasic(nailHeight, nailWidth, nailLineColor, nailColor);
-    nail.localPosition = position;
-    nail.localRotation = rotation;
-    nail.deltaRotation = nailDeltaRotation;
-    glObjects.push(nail);
-    sceneObjects.push(nail);
-    nails.push(nail);
-    nailPositions.push(position);
-}
+    dirLight = new DirectionalLight(directionalLightIntensity, 
+        directionalLightColor, directionalLightDir);
+    lights.push(dirLight)
+    sceneObjects.push(dirLight);
 
-function createLights(sceneObjects)
-{
+    let ambientLight = new AmbientLight(ambientLightIntensity, 
+        ambientLightColor);
+    lights.push(ambientLight);
+    sceneObjects.push(ambientLight);
 
+    pointLight = new PointLight(pointLightPosition, pointLightIntensity, pointLightColor);
+    lights.push(pointLight);
+    sceneObjects.push(pointLight);
 }
 
 function createCamera(sceneObjects)
@@ -202,18 +181,33 @@ function createCamera(sceneObjects)
     return cam;
 }
 
-function animateNails()
+function animateSphere()
 {
-    for (let i = 0; i < nails.length; i++) {
-        const nail = nails[i];
-        animateNail(nail, nailPositions[i]);
-    }
-    nailAngle += nailDeltaAngle % 360;
+    let s = Math.sin(angleToRadians(sphereAngle));
+    let c = Math.cos(angleToRadians(sphereAngle));
+    let p = spherePosition;
+    sphere.localPosition = new Vector3(p.x + shereDistance * s, p.y + shereDistance * c, p.z);
+    sphereAngle = (sphereAngle + sphereDeltaAngle) % 360;
+    //console.log(sphere.localPosition.elements);
 }
 
-function animateNail(nail, position)
+function animateDirLight(factor)
 {
-    let f = Math.sin(angleToRadians(nailAngle));
-    let p = position;
-    nail.localPosition = new Vector3(p.x * f, p.y * f, p.z*f);
+    directionalLightAngle = (directionalLightAngle + directionalLightDeltaRotation*factor) % 360;
+    directionalLightAngle = directionalLightAngle < 0 ? directionalLightAngle + 360 : directionalLightAngle;
+    let s = Math.sin(angleToRadians(directionalLightAngle));
+    let c = Math.cos(angleToRadians(directionalLightAngle));
+    dirLight.direction = new Vector3(s, dirLight.direction.y, c);
+    //console.log(sphere.localPosition.elements);
+}
+
+function animatePointLight(factor)
+{
+    pointLightAngle = (pointLightAngle + pointLightDeltaRotation*factor) % 360;
+    pointLightAngle = pointLightAngle < 0 ? pointLightAngle + 360 : pointLightAngle;
+    let s = Math.sin(angleToRadians(pointLightAngle));
+    let c = Math.cos(angleToRadians(pointLightAngle));
+    let p = pointLightPosition;
+    pointLight.localPosition = new Vector3(p.x + pointLightDistance * s, p.y, p.z + pointLightDistance * c);
+    //console.log(sphere.localPosition.elements);
 }

@@ -62,7 +62,19 @@ class GLObject extends SceneObject
     get vertexNormals()
     {
         //return this.faces.reduce((r, f) =>  r = r.concat(f.getVertexNormals()), []);
-        return this.vertices.reduce((r, v) =>  r = r.concat(v.normal.elements), []);
+        //return this.vertices.reduce((r, v) =>  r = r.concat(v.normal.elements), []);
+        let nMatrix = this.normalMatrix;
+        function createNormal(normal)
+        {
+            let elements = [...normal.elements];
+            elements.push(1.0);
+            let result = new Matrix(elements, 1, 4);
+            result = nMatrix.multiply(result);
+            //console.log(result);
+            return [result.elements[0],result.elements[1],result.elements[2]];
+        }
+        let result = this.vertices.reduce((r, v) =>  r = r.concat(createNormal(v.normal)), []);
+        return result;
     }
 
     setFaceColor(color)
@@ -112,5 +124,14 @@ class GLObject extends SceneObject
         });
         this.wireframe = lines;
         //console.log(this.wireframe.length);
+    }
+
+    get normalMatrix()
+    {
+        let result = this.transformationMatrix();
+        result = result.inverse();
+        //result = result.transpose();
+        //console.log(result);
+        return result;
     }
 }

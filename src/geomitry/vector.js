@@ -70,7 +70,7 @@ class Vector
         return result;
     }
 
-    scalar(other)
+    dot(other)
     {
         assert(other.length === this.length, [this, other], 
             "The other vector has to be same size as this vector");
@@ -143,5 +143,11 @@ class Vector3 extends Vector
     static one()
     {
         return new Vector3(1,1,1);
+    }
+
+    static createByElementArray(elements)
+    {
+        assert(elements.length === 3, [elements], "Invalid length");
+        return new Vector3(elements[0], elements[1],elements[2])
     }
 }

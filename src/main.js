@@ -8,7 +8,7 @@ main();
 
 function main()
 {
-    const cameraRadius = 500;
+    const cameraRadius = 700;
     const cameraDeltaRotation = new Vector3(0, 0, 0);
     const cameraPosition = new Vector3(0,0,cameraRadius);
     const cameraRotation = new Vector3(30,15,0);
@@ -46,6 +46,16 @@ function main()
         {
             zoom(-deltaZoom);
         } 
+        if(event.keyCode == 73) 
+        {
+            animateDirLight(1.0);
+            animatePointLight(1.0);
+        }
+        if(event.keyCode == 76) 
+        {
+            animateDirLight(-1.0);
+            animatePointLight(-1.0);
+        } 
     }
 
     function rotateCameraY(deltaAngle)
@@ -75,12 +85,16 @@ function main()
     scene.camera.localRotation = cameraRotation;
     scene.camera.deltaRotation = cameraDeltaRotation;
     //console.log(scene.glObjects[0]);
+    
+    animateDirLight(1.0);
+    animatePointLight(1.0);
     animation = window.requestAnimationFrame(animate);
 }
 
 function animate()
 {
-    animateNails();
+    animateSphere();
+
     scene.animate();
     render();
     animation = window.requestAnimationFrame(animate);
